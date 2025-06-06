@@ -1,0 +1,23 @@
+machines:
+  - name: "pg01"
+    ip: "192.168.56.101"
+  - name: "pg02"
+    ip: "192.168.56.102"
+  - name: "pg03"
+    ip: "192.168.56.103"
+  - name: "etcd01"
+    ip: "192.168.56.104"
+  - name: "etcd02"
+    ip: "192.168.56.105"
+  - name: "etcd03"
+    ip: "192.168.56.106"
+
+cluster_name: PostgreSQL Cluster
+
+network:
+  dns_servers:
+    - 10.202.10.202
+    - 178.22.122.100
+
+
+

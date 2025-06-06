@@ -1,0 +1,66 @@
+require "yaml"
+
+# Load settings from YAML file
+vagrant_root = File.dirname(File.expand_path(__FILE__))
+setting = YAML.load_file("#{vagrant_root}/setting.yml")
+
+# Extract DNS servers
+DNS_SERVERS1 = setting["network"]["dns_servers"][0]
+DNS_SERVERS2 = setting["network"]["dns_servers"][1]
+
+Vagrant.configure("2") do |config|
+  config.vm.box_check_update = false
+
+  # Create /etc/hosts entries for all machines
+  hosts_entries = setting["machines"].map do |machine|
+    "#{machine['ip']} #{machine['name']}.local #{machine['name']}"
+  end.join("\n")
+
+  # Provision the VM with necessary configurations
+  config.vm.provision "shell", env: { "DNS_SERVERS1" => DNS_SERVERS1, "DNS_SERVERS2" => DNS_SERVERS2 }, inline: <<-SHELL
+      # Add /etc/hosts entries
+      echo "#{hosts_entries}" >> /etc/hosts
+
+      # Disable systemd-resolved
+      sudo systemctl disable systemd-resolved.service
+      sudo systemctl stop systemd-resolved.service
+
+      # Configure resolv.conf with DNS servers
+      sudo rm /etc/resolv.conf
+      touch /etc/resolv.conf
+      echo "nameserver $DNS_SERVERS1" > /etc/resolv.conf
+      echo "nameserver $DNS_SERVERS2" >> /etc/resolv.conf
+
+      # Clean and update yum
+      sudo yum clean all -y
+      sudo yum makecache -y
+      # install requirements packages
+      sudo dnf install -y perl zip vim curl wget tar epel-release
+      sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      wget https://repo.almalinux.org/almalinux/9/CRB/x86_64/os/Packages/perl-IO-Tty-1.16-4.el9.x86_64.rpm
+      sudo dnf install -y perl-IO-Tty-1.16-4.el9.x86_64.rpm
+      wget https://repo.almalinux.org/almalinux/9/CRB/x86_64/os/Packages/perl-IPC-Run-20200505.0-6.el9.noarch.rpm
+      sudo dnf install -y perl-IPC-Run-20200505.0-6.el9.noarch.rpm
+  SHELL
+
+  # Define each VM based on settings
+  setting["machines"].each do |machine|
+    config.vm.define machine['name'] do |node|
+      node.vm.hostname = "#{machine['name']}.local"
+      node.vm.box = "almalinux/9"
+      node.vm.box_version = "9.5.20241203"
+      node.vm.network :private_network, ip: machine['ip']
+
+
+      # Optional provision script (uncomment if needed)
+      # node.vm.provision "shell", path: "scripts/common.sh"
+    end
+  end
+
+  # VirtualBox provider settings
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = 1
+  end
+end
+

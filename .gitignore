@@ -3,3 +3,7 @@
 ./.vagrant*
 ./vagrant*
 ./vagrant
+6-node-sample-almalinux/.vagrant
+openstack/.vagrant
+alma/.vagrant
+debian/.vagrant
