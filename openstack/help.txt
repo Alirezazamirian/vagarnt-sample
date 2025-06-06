@@ -1,0 +1,6 @@
+
+if vagrant faced with conflicting packages of Ruby, needs to do the following action :
+
+set the variable : VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT=1
+then install the plugins.
+

@@ -1,0 +1,33 @@
+require "yaml"
+vagrant_root = File.dirname(File.expand_path(__FILE__))
+setting = YAML.load_file("#{vagrant_root}/setting.yaml")
+
+IP_MAIN = setting["network"]["main_ip"]
+DNS_SERVERS1 = setting["network"]["dns_servers"][0]
+DNS_SERVERS2 = setting["network"]["dns_servers"][1]
+
+Vagrant.configure("2") do |config|
+  config.vm.box_check_update = false
+  config.vm.provision "shell", env: { "IP_MAIN" => IP_MAIN, "DNS_SERVERS1" => DNS_SERVERS1, "DNS_SERVERS2" => DNS_SERVERS2  }, inline: <<-SHELL
+      echo "$IP_MAIN openstack.local openstack" >> /etc/hosts
+      sudo systemctl disable systemd-resolved.service
+      sudo systemctl stop systemd-resolved.service
+      sudo rm /etc/resolv.conf
+      touch /etc/resolv.conf
+      echo "nameserver $DNS_SERVERS1" > /etc/resolv.conf
+      echo "nameserver $DNS_SERVERS2" >> /etc/resolv.conf
+      apt update -y
+  SHELL
+
+  # Openstack node
+  config.vm.define "openstack" do |openstack|
+    openstack.vm.hostname = "openstack"
+    openstack.vm.box = "cloud-image/ubuntu-24.04"
+    openstack.vm.network :private_network, ip: "192.168.56.200"
+    openstack.vm.provider "virtualbox" do |vb|
+      vb.cpus = setting["control"]["cpu"]
+      vb.memory = setting["control"]["memory"]
+    end
+    openstack.vm.provision "shell", path: "scripts/install-openstack.sh"
+  end
+end

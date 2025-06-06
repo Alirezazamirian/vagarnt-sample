@@ -1,0 +1,36 @@
+require "yaml"
+vagrant_root = File.dirname(File.expand_path(__FILE__))
+setting = YAML.load_file("#{vagrant_root}/setting.yaml")
+
+IP_SECTIONS = setting["network"]["control_ip"].match(/^([0-9.]+\.)([^.]+)$/)
+# First 3 octets including the trailing dot:
+IP_NW = IP_SECTIONS.captures[0]
+# Last octet excluding all dots:
+IP_START = Integer(IP_SECTIONS.captures[1])
+NUM_WORKER_NODES = setting["nodes"]["workers"]["count"]
+DNS_SERVERS1 = setting["network"]["dns_servers"][0]
+DNS_SERVERS2 = setting["network"]["dns_servers"][1]
+
+Vagrant.configure("2") do |config|
+  config.vm.box_check_update = false
+  config.vm.provision "shell", env: { "IP_NW" => IP_NW, "IP_START" => IP_START, "NUM_WORKER_NODES" => NUM_WORKER_NODES, "DNS_SERVERS1" => DNS_SERVERS1, "DNS_SERVERS2" => DNS_SERVERS2  }, inline: <<-SHELL
+      sudo systemctl disable systemd-resolved.service
+      sudo systemctl stop systemd-resolved.service
+      sudo rm /etc/resolv.conf
+      touch /etc/resolv.conf
+      echo "nameserver $DNS_SERVERS1" > /etc/resolv.conf
+      echo "nameserver $DNS_SERVERS2" >> /etc/resolv.conf
+      yum update -y
+  SHELL
+
+    config.vm.define "postgresql_cis" do |postgresql_cis|
+    postgresql_cis.vm.hostname = "postgresql-cis"
+    postgresql_cis.vm.box = "almalinux/9"
+    postgresql_cis.vm.box_version = "9.5.20241203"
+    postgresql_cis.vm.network :private_network, ip: "192.168.56.101"
+    postgresql_cis.vm.provider "virtualbox" do |vb|
+      vb.cpus = 2
+      vb.memory = "2048"
+    end
+  end
+end

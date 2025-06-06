@@ -1,0 +1,10 @@
+---
+network:
+  main_ip: 192.168.56.200
+  dns_servers:
+    - 10.202.10.202
+    - 178.22.122.100
+
+control:
+  cpu: 4
+  memory: 8192
